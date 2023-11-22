@@ -30,11 +30,7 @@ namespace pnd
   {
     void addbr(std::string_view br_name);
     void delbr(std::string_view br_name);
-    void addif(std::string_view br_name,
-        std::string_view device_name);
-    void delif(std::string_view br_name,
-        std::string_view device_name);
-    void show(const std::vector<std::string_view> &br_names);
+    void show(std::vector<std::string_view> br_names);
 
   private:
     bool is_bridge(std::string_view br_name);
@@ -72,18 +68,6 @@ namespace pnd
     impl->delbr(br_name);
   }
 
-  void brctl::addif(std::string_view br_name,
-      std::string_view device_name)
-  {
-    impl->addif(br_name, device_name);
-  }
-
-  void brctl::delif(std::string_view br_name,
-      std::string_view device_name)
-  {
-    impl->delif(br_name, device_name);
-  }
-
   void brctl_impl::addbr(std::string_view br_name)
   {
     static const char type[] = "bridge";
@@ -116,27 +100,30 @@ namespace pnd
     check_nlmsgerr(resp.header, "failed to delete bridge");
   }
 
-  void brctl_impl::addif(std::string_view br_name,
-      std::string_view device_name)
+  void brctl_impl::show(std::vector<std::string_view> br_names)
   {
-    throw std::logic_error("Not impl");
-  }
+    {
+      bool was_full = !br_names.empty();
 
-  void brctl_impl::delif(std::string_view br_name,
-      std::string_view device_name)
-  {
-    throw std::logic_error("Not impl");
-  }
-
-  void brctl_impl::show(const std::vector<std::string_view> &br_names)
-  {
-    for (const auto &br : br_names)
-      try {
-        if (!is_bridge(br))
-          std::cerr << "interface is not bridge: " << br << "\n";
-      } catch (const std::system_error &ex) {
-        std::cerr << "interface not found: " << br;
+      auto first = br_names.begin();
+      auto end = br_names.end();
+      while (first != end)
+      {
+        try {
+          if (!is_bridge(*first))
+          {
+            std::cerr << "interface is not bridge: " << *first << "\n";
+            br_names.erase(first);
+          }
+        } catch (const std::system_error &ex) {
+          std::cerr << "interface not found: " << *first << "\n";
+          br_names.erase(first);
+        }
+        first++;
       }
+      if (was_full && br_names.empty())
+        return;
+    }
 
     struct Bridge {
       std::string id;
